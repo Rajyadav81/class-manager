@@ -1,0 +1,347 @@
+# class-manager
+A beautiful student class manager with CRUD features, charts, and local storage — built using HTML, CSS, JS.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Class Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #1f1c2c, #928DAB);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .class-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      text-align: center;
+      width: 90%; max-width: 300px;
+      margin-bottom: 30px;
+    }
+    .class-container h1 { margin-bottom: 25px; font-size: 24px; }
+    .class-button {
+      background-color: #3498db;
+      color: white;
+      width: 100%; padding: 12px; margin: 10px 0;
+      border: none; border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .class-button:hover { background-color: #2980b9; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .modal-content {
+      background: #222;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%; max-width: 500px;
+      position: relative;
+      color: white;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #444;
+      color: white;
+      font-size: 1em;
+      margin-bottom: 15px;
+    }
+    .submit-btn {
+      width: 100%; padding: 12px;
+      background: #16a085; border: none;
+      font-size: 1em;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .close-btn {
+      position: absolute; top: 10px; right: 20px;
+      font-size: 20px; cursor: pointer;
+    }
+    .table-section {
+      max-width: 1000px; width: 100%;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 10px;
+    }
+    table {
+      width: 100%; border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #888;
+      padding: 10px;
+      text-align: center;
+      color: white;
+    }
+    th { background: #333; }
+    .btn {
+      padding: 5px 10px;
+      font-size: 14px;
+      margin: 2px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .delete-btn { background: crimson; color: white; }
+    .edit-btn { background: orange; color: white; }
+    #searchInput, #exportBtn, #printBtn {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+    }
+    #searchInput { width: 100%; background: #333; color: white; }
+    #exportBtn { background: #e67e22; color: white; }
+    #printBtn { background: #3498db; color: white; margin-left: 10px; }
+    @media print {
+      body * { visibility: hidden; }
+      .table-section, .table-section * {
+        visibility: visible;
+      }
+      .table-section {
+        position: absolute;
+        top: 0; left: 0; width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="class-container">
+    <h1>CLASS LIST</h1>
+    <div id="classButtons"></div>
+  </div>
+
+  <div class="modal" id="formModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeForm()">&times;</span>
+      <h2 id="formTitle">Add Student</h2>
+      <form id="studentForm">
+        <div class="form-group">
+          <input type="text" name="name" placeholder="Full Name" required>
+          <input type="number" name="roll" placeholder="Roll Number" required>
+          <input type="text" name="father" placeholder="Father's Name" required>
+          <input type="text" name="mother" placeholder="Mother's Name" required>
+          <select name="gender" required>
+            <option value="">Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+        <button type="submit" class="submit-btn">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="table-section" id="tableSection" style="display:none">
+    <h2 id="tableTitle">Students</h2>
+    <input type="text" id="searchInput" placeholder="Search student...">
+    <button id="exportBtn" onclick="exportCSV()">📥 Export CSV</button>
+    <button id="printBtn" onclick="window.print()">🖨️ Print Table</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Roll No</th>
+          <th>Father</th>
+          <th>Mother</th>
+          <th>Gender</th>
+          <th>Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="studentTableBody"></tbody>
+    </table>
+
+    <h2 style="margin-top: 40px;">🧑‍🤝‍🧑 Gender Distribution</h2>
+    <canvas id="genderChart" width="400" height="200"></canvas><br>
+    <button onclick="downloadChart()" style="margin-top:10px; padding:10px; background:purple; color:white; border:none; border-radius:8px;">📷 Download Chart</button>
+  </div>
+
+<script>
+  const classList = ["Class 1","Class 2","Class 3","Class 4","Class 5","Class 6","Class 7","Class 8"];
+  let currentClass = "";
+  let editingIndex = -1;
+  let allData = [];
+  let genderChart;
+
+  function updateClassButtons() {
+    const container = document.getElementById("classButtons");
+    container.innerHTML = "";
+    classList.forEach(cls => {
+      const key = `students_${cls.replace(" ", "_").toLowerCase()}`;
+      const data = JSON.parse(localStorage.getItem(key)) || [];
+      const btn = document.createElement("button");
+      btn.className = "class-button";
+      btn.innerText = `${cls} (${data.length})`;
+      btn.onclick = () => openForm(cls);
+      container.appendChild(btn);
+    });
+  }
+
+  function openForm(className) {
+    currentClass = className;
+    editingIndex = -1;
+    document.getElementById("formTitle").innerText = `Add Student to ${className}`;
+    document.getElementById("formModal").style.display = "flex";
+    loadTableData();
+  }
+
+  function closeForm() {
+    document.getElementById("formModal").style.display = "none";
+    document.getElementById("studentForm").reset();
+    editingIndex = -1;
+  }
+
+  document.getElementById("studentForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const student = {
+      name: form.name.value,
+      roll: form.roll.value,
+      father: form.father.value,
+      mother: form.mother.value,
+      gender: form.gender.value,
+      timestamp: new Date().toLocaleString()
+    };
+    const key = `students_${currentClass.replace(" ", "_").toLowerCase()}`;
+    let data = JSON.parse(localStorage.getItem(key)) || [];
+    if (editingIndex >= 0) data[editingIndex] = student;
+    else data.push(student);
+    localStorage.setItem(key, JSON.stringify(data));
+    form.reset();
+    editingIndex = -1;
+    loadTableData();
+    updateClassButtons();
+  });
+
+  function loadTableData() {
+    const key = `students_${currentClass.replace(" ", "_").toLowerCase()}`;
+    allData = JSON.parse(localStorage.getItem(key)) || [];
+    document.getElementById("tableSection").style.display = "block";
+    document.getElementById("tableTitle").innerText = `Students of ${currentClass}`;
+    renderTable(allData);
+    drawGenderChart();
+  }
+
+  function renderTable(data) {
+    const tbody = document.getElementById("studentTableBody");
+    tbody.innerHTML = "";
+    data.forEach((s, i) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${s.name}</td>
+        <td>${s.roll}</td>
+        <td>${s.father}</td>
+        <td>${s.mother}</td>
+        <td>${s.gender}</td>
+        <td>${s.timestamp}</td>
+        <td>
+          <button class="btn edit-btn" onclick="editStudent(${i})">Edit</button>
+          <button class="btn delete-btn" onclick="deleteStudent(${i})">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function editStudent(index) {
+    const student = allData[index];
+    editingIndex = index;
+    const form = document.getElementById("studentForm");
+    form.name.value = student.name;
+    form.roll.value = student.roll;
+    form.father.value = student.father;
+    form.mother.value = student.mother;
+    form.gender.value = student.gender;
+    document.getElementById("formModal").style.display = "flex";
+    document.getElementById("formTitle").innerText = `Edit Student (${currentClass})`;
+  }
+
+  function deleteStudent(index) {
+    if (confirm("Delete this student?")) {
+      const key = `students_${currentClass.replace(" ", "_").toLowerCase()}`;
+      allData.splice(index, 1);
+      localStorage.setItem(key, JSON.stringify(allData));
+      loadTableData();
+      updateClassButtons();
+    }
+  }
+
+  function exportCSV() {
+    let csv = "Name,Roll,Father,Mother,Gender,Timestamp\n";
+    allData.forEach(s => {
+      csv += `${s.name},${s.roll},${s.father},${s.mother},${s.gender},${s.timestamp}\n`;
+    });
+    const blob = new Blob([csv], {type:"text/csv"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${currentClass}_students.csv`;
+    a.click();
+  }
+
+  function drawGenderChart() {
+    const key = `students_${currentClass.replace(" ", "_").toLowerCase()}`;
+    const data = JSON.parse(localStorage.getItem(key)) || [];
+    const male = data.filter(s => s.gender === "Male").length;
+    const female = data.filter(s => s.gender === "Female").length;
+    if (genderChart) genderChart.destroy();
+    const ctx = document.getElementById('genderChart').getContext('2d');
+    genderChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: ['Male', 'Female'],
+        datasets: [{
+          data: [male, female],
+          backgroundColor: ['#3498db', '#e74c3c']
+        }]
+      },
+      options: { responsive: true }
+    });
+  }
+
+  function downloadChart() {
+    const link = document.createElement('a');
+    link.download = `${currentClass}_gender_chart.png`;
+    link.href = document.getElementById('genderChart').toDataURL();
+    link.click();
+  }
+
+  document.getElementById("searchInput").addEventListener("input", function () {
+    const val = this.value.toLowerCase();
+    const filtered = allData.filter(s =>
+      s.name.toLowerCase().includes(val) ||
+      s.roll.toString().includes(val) ||
+      s.father.toLowerCase().includes(val) ||
+      s.mother.toLowerCase().includes(val) ||
+      s.gender.toLowerCase().includes(val)
+    );
+    renderTable(filtered);
+  });
+
+  updateClassButtons();
+</script>
+</body>
+</html>
